@@ -8533,21 +8533,48 @@ SettingsModule.updateDisplays();
   if (!installBtn) return;
   const APK_DOWNLOAD_URL = 'https://dawnload-apk.vercel.app/';
   installBtn.innerHTML = '<span class="material-symbols-outlined">download</span> تحميل التطبيق (APK)';
-  installBtn.style.display = 'flex'; // نظهره دائماً
+  
+  // ===== START: التحقق من بيئة التشغيل =====
+  function isRunningInAPK() {
+    // 1. التحقق من وجود WebView (علامة مميزة في تطبيقات Android)
+    if (typeof window.android !== 'undefined') return true;
+    // 2. التحقق من البروتوكول (في APK عادةً يكون file://)
+    if (window.location.protocol === 'file:') return true;
+    // 3. التحقق من User-Agent (يحتوي على "wv" لـ WebView)
+    if (navigator.userAgent.indexOf('wv') > -1) return true;
+    // 4. التحقق من وجود كائن AndroidBridge (يُضاف في بعض التطبيقات)
+    if (typeof AndroidBridge !== 'undefined') return true;
+    return false;
+  }
+  // ===== END: التحقق من بيئة التشغيل =====
+
+  if (isRunningInAPK()) {
+    // إذا كان يعمل داخل APK، نخفي الزر نهائياً
+    installBtn.style.display = 'none';
+    console.log('✅ تم إخفاء زر التثبيت (يعمل داخل APK)');
+    return;
+  }
+
+  // إذا كان يعمل في المتصفح العادي، نظهر الزر
+  installBtn.style.display = 'flex';
   installBtn.addEventListener('click', function(e) {
     e.preventDefault();
     window.location.href = APK_DOWNLOAD_URL;
   });
 
+  // إذا كان مثبتاً كـ PWA، نخفيه أيضاً
   if (window.matchMedia('(display-mode: standalone)').matches) {
     installBtn.style.display = 'none';
   }
+  
+  // منع ظهور طلب تثبيت PWA (لأننا نفضل تحميل APK)
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     console.log('تم إلغاء طلب تثبيت PWA، استخدم زر تحميل APK بدلاً من ذلك.');
   });
-
 })();
+
+
   </script>
 </body>
 </html>
