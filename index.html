@@ -8527,48 +8527,55 @@ SettingsModule.updateDisplays();
     // =====================================================================
     // 23. زر تثبيت التطبيق (PWA)
     // ================================================================
-    (function setupInstallButton() {
-  const installBtn = document.getElementById('installAppBtn');
-  if (!installBtn) return;
+(function setupInstallButton() {
+  // تأخير التنفيذ لضمان وجود العنصر في DOM
+  setTimeout(function() {
+    const installBtn = document.getElementById('installAppBtn');
+    if (!installBtn) return;
 
-  // دالة للكشف عن البيئة المغلفة (APK / PWA / WebView)
-  function isStandaloneOrWebView() {
-    // PWA مثبت
-    if (window.matchMedia('(display-mode: standalone)').matches) return true;
-    // iOS Safari مثبت
-    if (window.navigator.standalone) return true;
-    // WebView (معظم أدوات التغليف)
-    if (navigator.userAgent.indexOf('wv') > -1) return true;
-    if (navigator.userAgent.indexOf('WebView') > -1) return true;
-    // بروتوكول file:// (بعض أدوات التغليف)
-    if (window.location.protocol === 'file:') return true;
-    // كائنات خاصة بأدوات التغليف
-    if (typeof window.android !== 'undefined') return true;
-    if (typeof AndroidBridge !== 'undefined') return true;
-    // باراميتر مخصص
-    if (window.location.search.includes('apk=true')) return true;
-    return false;
-  }
+    // إخفاء الزر افتراضياً
+    installBtn.style.display = 'none';
 
-  // إذا كانت البيئة مغلفة → احذف الزر نهائياً
-  if (isStandaloneOrWebView()) {
-    installBtn.remove();   // إزالة العنصر من DOM
-    console.log('✅ تم إزالة زر التثبيت (بيئة مغلفة)');
-    return;
-  }
+    // دالة متقدمة للكشف عن البيئة المغلفة (APK / PWA / WebView)
+    function isStandaloneOrWebView() {
+      // PWA مثبت (Android / Chrome)
+      if (window.matchMedia('(display-mode: standalone)').matches) return true;
+      // iOS Safari مثبت
+      if (window.navigator.standalone) return true;
+      // WebView (معظم أدوات التغليف)
+      if (navigator.userAgent.indexOf('wv') > -1) return true;
+      if (navigator.userAgent.indexOf('WebView') > -1) return true;
+      // بروتوكول file:// (بعض أدوات التغليف)
+      if (window.location.protocol === 'file:') return true;
 
-  // في المتصفح العادي غير المثبت → نظهر الزر
-  installBtn.style.display = 'flex';
-  installBtn.innerHTML = '<span class="material-symbols-outlined">download</span> تحميل التطبيق (APK)';
-  installBtn.addEventListener('click', function(e) {
-    e.preventDefault();
-    window.location.href = 'https://dawnload-apk.vercel.app/';
-  });
+      if (typeof window.android !== 'undefined') return true;
+      if (typeof AndroidBridge !== 'undefined') return true;
 
-  // منع طلب تثبيت PWA
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-  });
+      if (window.location.search.includes('apk=true')) return true;
+      return false;
+    }
+
+
+    if (isStandaloneOrWebView()) {
+      installBtn.remove();
+      console.log('✅ تم إزالة زر التثبيت (بيئة مغلفة)');
+      return;
+    }
+
+
+    installBtn.style.display = 'flex';
+    installBtn.innerHTML = '<span class="material-symbols-outlined">download</span> تحميل التطبيق (APK)';
+    installBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      window.location.href = 'https://dawnload-apk.vercel.app/';
+    });
+
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+    });
+
+  }, 100);
 })();
   </script>
 </body>
