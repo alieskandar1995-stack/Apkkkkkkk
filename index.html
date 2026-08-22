@@ -8526,51 +8526,48 @@ SettingsModule.updateDisplays();
 
     // =====================================================================
     // 23. زر تثبيت التطبيق (PWA)
-    // =====================================================================
-(function setupInstallButton() {
+    // ================================================================
+    (function setupInstallButton() {
   const installBtn = document.getElementById('installAppBtn');
   if (!installBtn) return;
 
-  // 1. إخفاء الزر بشكل افتراضي
-  installBtn.style.display = 'none';
-
-  // 2. دالة للكشف عن بيئة مثبتة أو WebView
+  // دالة للكشف عن البيئة المغلفة (APK / PWA / WebView)
   function isStandaloneOrWebView() {
-    // إذا كان مثبتاً كـ PWA (على Android أو Chrome)
+    // PWA مثبت
     if (window.matchMedia('(display-mode: standalone)').matches) return true;
-    // إذا كان مثبتاً على iOS (Safari)
+    // iOS Safari مثبت
     if (window.navigator.standalone) return true;
-    // إذا كان يعمل داخل WebView (غالباً APK)
+    // WebView (معظم أدوات التغليف)
     if (navigator.userAgent.indexOf('wv') > -1) return true;
     if (navigator.userAgent.indexOf('WebView') > -1) return true;
     // بروتوكول file:// (بعض أدوات التغليف)
     if (window.location.protocol === 'file:') return true;
-    // كائنات خاصة بأدوات التغليف (مثل AndroidBridge)
+    // كائنات خاصة بأدوات التغليف
     if (typeof window.android !== 'undefined') return true;
     if (typeof AndroidBridge !== 'undefined') return true;
-    // باراميتر مخصص في الرابط (اختياري)
+    // باراميتر مخصص
     if (window.location.search.includes('apk=true')) return true;
     return false;
   }
 
-  // 3. إذا كانت البيئة مثبتة أو WebView، نترك الزر مخفياً وننهي التنفيذ
+  // إذا كانت البيئة مغلفة → احذف الزر نهائياً
   if (isStandaloneOrWebView()) {
-    console.log('✅ تم إخفاء زر التثبيت (بيئة مثبتة أو WebView)');
+    installBtn.remove();   // إزالة العنصر من DOM
+    console.log('✅ تم إزالة زر التثبيت (بيئة مغلفة)');
     return;
   }
 
-  // 4. هنا نكون في متصفح عادي غير مثبت → نظهر الزر ونضبط وظيفته
+  // في المتصفح العادي غير المثبت → نظهر الزر
   installBtn.style.display = 'flex';
   installBtn.innerHTML = '<span class="material-symbols-outlined">download</span> تحميل التطبيق (APK)';
   installBtn.addEventListener('click', function(e) {
     e.preventDefault();
-    window.location.href = 'https://dawnload-apk.vercel.app/'; // رابط تحميل APK
+    window.location.href = 'https://dawnload-apk.vercel.app/';
   });
 
-  // 5. منع ظهور طلب تثبيت PWA في المتصفح
+  // منع طلب تثبيت PWA
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
-    console.log('تم إلغاء طلب تثبيت PWA');
   });
 })();
   </script>
