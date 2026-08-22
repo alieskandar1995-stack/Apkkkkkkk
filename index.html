@@ -8527,35 +8527,36 @@ SettingsModule.updateDisplays();
     // =====================================================================
     // 23. زر تثبيت التطبيق (PWA)
     // =====================================================================
-
-(function setupInstallButton() {
+  (function setupInstallButton() {
   const installBtn = document.getElementById('installAppBtn');
   if (!installBtn) return;
+
   const APK_DOWNLOAD_URL = 'https://dawnload-apk.vercel.app/';
   installBtn.innerHTML = '<span class="material-symbols-outlined">download</span> تحميل التطبيق (APK)';
-  
-  // ===== START: التحقق من بيئة التشغيل =====
+
+  // ===== التحقق من بيئة التشغيل (محسّن) =====
   function isRunningInAPK() {
-    // 1. التحقق من وجود WebView (علامة مميزة في تطبيقات Android)
+    // 1. WebView كائن Android (يُضاف في بعض التطبيقات)
     if (typeof window.android !== 'undefined') return true;
-    // 2. التحقق من البروتوكول (في APK عادةً يكون file://)
+    // 2. بروتوكول file:// (معظم أدوات تحويل PWA->APK)
     if (window.location.protocol === 'file:') return true;
-    // 3. التحقق من User-Agent (يحتوي على "wv" لـ WebView)
+    // 3. User-Agent يحتوي على "wv" (WebView)
     if (navigator.userAgent.indexOf('wv') > -1) return true;
-    // 4. التحقق من وجود كائن AndroidBridge (يُضاف في بعض التطبيقات)
+    // 4. كائن AndroidBridge (بعض الأدوات)
     if (typeof AndroidBridge !== 'undefined') return true;
+    // 5. باراميتر apk=true في الـ URL (الحل الأضمن)
+    if (window.location.search.includes('apk=true')) return true;
     return false;
   }
-  // ===== END: التحقق من بيئة التشغيل =====
 
+  // إذا كان يعمل داخل APK، إخفاء الزر نهائياً
   if (isRunningInAPK()) {
-    // إذا كان يعمل داخل APK، نخفي الزر نهائياً
     installBtn.style.display = 'none';
     console.log('✅ تم إخفاء زر التثبيت (يعمل داخل APK)');
     return;
   }
 
-  // إذا كان يعمل في المتصفح العادي، نظهر الزر
+  // في المتصفح العادي، نظهر الزر
   installBtn.style.display = 'flex';
   installBtn.addEventListener('click', function(e) {
     e.preventDefault();
@@ -8566,15 +8567,13 @@ SettingsModule.updateDisplays();
   if (window.matchMedia('(display-mode: standalone)').matches) {
     installBtn.style.display = 'none';
   }
-  
+
   // منع ظهور طلب تثبيت PWA (لأننا نفضل تحميل APK)
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     console.log('تم إلغاء طلب تثبيت PWA، استخدم زر تحميل APK بدلاً من ذلك.');
   });
 })();
-
-
   </script>
 </body>
 </html>
