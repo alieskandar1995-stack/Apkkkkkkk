@@ -944,12 +944,13 @@
       </div>
     </header>
 
-    <div id="quickStats" style="display:none;">
-      <div class="stat-item"><span class="material-symbols-outlined">shopping_cart</span> مبيعات اليوم: <span class="stat-value gold" id="statTodaySales">0</span></div>
-      <div class="stat-item"><span class="material-symbols-outlined">trending_up</span> ربح اليوم: <span class="stat-value green" id="statTodayProfit">0</span></div>
-      <div class="stat-item"><span class="material-symbols-outlined">payments</span> الصافي النقدي: <span class="stat-value" id="statTodayCashNet">0</span></div>
-      <div class="stat-item"><span class="material-symbols-outlined">receipt_long</span> فواتير اليوم: <span class="stat-value" id="statTodayInvoices">0</span></div>
-      <div class="stat-item"><span class="material-symbols-outlined">account_balance</span> رأس المال: <span class="stat-value equity" id="statTotalEquity">0</span></div>
+  <div id="quickStats" style="display:none;">
+  <div class="stat-item"><span class="material-symbols-outlined">shopping_cart</span> مبيعات اليوم: <span class="stat-value gold" id="statTodaySales">0</span></div>
+  <div class="stat-item"><span class="material-symbols-outlined">trending_up</span> ربح اليوم: <span class="stat-value green" id="statTodayProfit">0</span></div>
+  
+  <!-- ===== السطر الجديد (ضع هذا الكود هنا) ===== -->
+  <div class="stat-item"><span class="material-symbols-outlined">account_balance_wallet</span> الرصيد النقدي الكلي: <span class="stat-value gold" id="statTotalCash">0</span></div>
+  <!-- ======================================== -->
     </div>
 
     <div id="exchangeRateBar" style="display:none;">
@@ -3952,77 +3953,180 @@
       },
       // ===== END: إصلاح المعاملات الذرية في processPayment =====
 
-      _applyPayment: async (inv, paid, method, op) => {
-        if (paid < 0) { Utils.toast('⚠️ المبلغ المدفوع يجب أن يكون موجباً'); return false; }
-        const net = inv.netAmount || 0;
-        const curPaid = inv.paidAmount || 0;
-        let newPaid, rem;
-        if (op === 'repayment') { newPaid = curPaid + paid; rem = net - newPaid; } 
-        else { newPaid = paid; rem = net - paid; }
-        if (rem < 0) { Utils.toast('⚠️ المبلغ المدفوع يتجاوز قيمة الفاتورة'); return false; }
+     _applyPayment: async (inv, paid, method, op) => {
+  if (paid < 0) {
+    Utils.toast('⚠️ المبلغ المدفوع يجب أن يكون موجباً');
+    return false;
+  }
 
-        const cash = Cash.get();
-        let newCash = cash;
-        const isSales = inv.type === 'مبيعات';
-        const isPurchase = inv.type === 'مشتريات';
-        const isRetSales = inv.type === 'مرتجع مبيعات';
-        const isRetPurchase = inv.type === 'مرتجع مشتريات';
+  const net = inv.netAmount || 0;
+  const curPaid = inv.paidAmount || 0;
+  let newPaid, rem;
 
-        if (op === 'create') {
-          if (isSales || isRetPurchase) newCash += paid;
-          else if (isPurchase || isRetSales) newCash -= paid;
-          else if (inv.type === 'مصروفات') newCash -= paid;
-        } else {
-          if (isSales || isRetPurchase) newCash += paid;
-          else if (isPurchase || isRetSales) newCash -= paid;
+  if (op === 'repayment') {
+    newPaid = curPaid + paid;
+    rem = net - newPaid;
+  } else {
+    newPaid = paid;
+    rem = net - paid;
+  }
+
+  if (rem < 0) {
+    Utils.toast('⚠️ المبلغ المدفوع يتجاوز قيمة الفاتورة');
+    return false;
+  }
+
+  const cash = Cash.get();
+  let newCash = cash;
+
+  // تحديد نوع الفاتورة بشكل آمن
+  const type = (inv.type || '').trim();
+
+  if (op === 'create') {
+    if (type === 'مبيعات' || type === 'مرتجع مشتريات') {
+      newCash += paid;
+    } else if (type === 'مشتريات' || type === 'مرتجع مبيعات') {
+      newCash -= paid;
+    } else if (type === 'مصروفات') {
+      newCash -= paid;
+    }
+  } else {
+    // ✅ تسديد الديون
+    if (type === 'مبيعات' || type === 'مرتجع مشتريات') {
+      newCash += paid;
+    } else if (type === 'مشتريات' || type === 'مرتجع مبيعات') {
+      newCash -= paid;
+    } else if (type === 'دين يدوي') {
+      newCash += paid;
+    }
+  }
+
+  if (newCash < 0) {
+    Utils.toast('⚠️ الرصيد النقدي غير كافٍ');
+    return false;
+  }
+
+  // تحديث الرصيد النقدي في localStorage و IndexedDB
+  Cash.set(newCash);
+  await DB.put('metadata', { key: 'cashLiquidity', value: newCash });
+
+  // تحديث القيمة بالدولار إذا كانت موجودة
+  if (inv.usdRemaining !== undefined && paid > 0) {
+    const rate = inv.exchangeRateAtCreation || Currency.rate;
+    const paidUSD = paid / rate;
+    inv.usdRemaining = Math.max(0, (inv.usdRemaining || 0) - paidUSD);
+  }
+
+  // تحديث رصيد العميل/المورد
+  if (inv.contactId) {
+    const contact = await DB.get('contacts', inv.contactId);
+    if (contact) {
+      let bal = 0;
+      if (op === 'create') {
+        bal = rem;
+      } else if (op === 'repayment') {
+        bal = -paid;
+      }
+      if (bal !== 0) {
+        contact.balance = (contact.balance || 0) + bal;
+        await DB.put('contacts', contact);
+        // تحديث القائمة المحلية للعملاء
+        const customers = await DB.getAll('contacts');
+        store.batchUpdate({ customers: customers });
+        if (typeof App !== 'undefined') {
+          App.updateCustomerDatalist();
+          App.updateRetailCustomerDatalist();
         }
-        if (newCash < 0) { Utils.toast('⚠️ الرصيد النقدي غير كافٍ لعملية الدفع'); return false; }
-        Cash.set(newCash);
-        await DB.put('metadata', { key: 'cashLiquidity', value: newCash });
-
-        if (inv.usdRemaining !== undefined && paid > 0) {
-          const rate = inv.exchangeRateAtCreation || Currency.rate;
-          const paidUSD = paid / rate;
-          inv.usdRemaining = Math.max(0, (inv.usdRemaining || 0) - paidUSD);
+        if (typeof InvoiceModule !== 'undefined' && InvoiceModule._populateCustomerSelect) {
+          InvoiceModule._populateCustomerSelect();
         }
+        await Cash.addAudit({
+          action: op === 'create' ? 'إنشاء فاتورة' : 'تسديد قسط',
+          invoiceId: inv.id,
+          amount: paid,
+          remaining: rem,
+          description: `${op} - تغيير رصيد: ${bal}`
+        });
+      }
+    }
+  }
 
-        if (inv.contactId) {
-          const contact = await DB.get('contacts', inv.contactId);
-          if (contact) {
-            let bal = 0;
-            if (op === 'create') {
-              bal = rem; 
-            } else if (op === 'repayment') {
-              bal = -paid;
-            }
-            if (bal !== 0) {
-              contact.balance = (contact.balance || 0) + bal;
-              await DB.put('contacts', contact);
-              const customers = await DB.getAll('contacts');
-              store.batchUpdate({ customers: customers });
-              App.updateCustomerDatalist();
-              App.updateRetailCustomerDatalist();
-              InvoiceModule._populateCustomerSelect();
-              await Cash.addAudit({
-                action: op === 'create' ? 'إنشاء فاتورة' : 'تسديد قسط',
-                invoiceId: inv.id,
-                amount: paid,
-                remaining: rem,
-                description: `${op} - تغيير رصيد: ${bal}`
-              });
-            }
-          }
-        }
+  // تحديث الفاتورة نفسها
+  inv.paidAmount = newPaid;
+  inv.remaining = rem;
+  inv.status = rem === 0 ? 'مغلقة' : 'مفتوحة';
+  inv.paymentMethod = method;
+  await DB.put('invoices', inv);
 
-        inv.paidAmount = newPaid;
-        inv.remaining = rem;
-        inv.status = rem === 0 ? 'مغلقة' : 'مفتوحة';
-        inv.paymentMethod = method;
-        await DB.put('invoices', inv);
-        Utils.toast(`✅ ${inv.id} - المدفوع: ${Currency.format(newPaid)}، المتبقي: ${Currency.format(rem)}`);
-        return true;
-      },
+  // ===== ✅ تحديث الواجهة مباشرة (دون الاعتماد على كائنات قد تكون غير معرفة) =====
+  // تحديث الرصيد النقدي في شريط الحالة العلوي (Quick Stats)
+  const cashNetEl = document.getElementById('statTodayCashNet');
+  if (cashNetEl) {
+    cashNetEl.textContent = Currency.format(newCash);
+    cashNetEl.className = 'stat-value ' + (newCash >= 0 ? 'green' : 'red');
+  }
 
+  // تحديث الرصيد النقدي في الإعدادات
+  const settingsCashEl = document.getElementById('settingsCashDisplay');
+  if (settingsCashEl) {
+    settingsCashEl.textContent = Currency.format(newCash);
+  }
+
+  // تحديث الرصيد النقدي في التقارير
+  const reportCashEl = document.getElementById('reportCashLiquidity');
+  if (reportCashEl) {
+    reportCashEl.textContent = Currency.format(newCash);
+  }
+
+  // تحديث قائمة الديون (إذا كانت مفتوحة)
+  if (document.getElementById('panel-debts') && document.getElementById('panel-debts').classList.contains('active')) {
+    if (typeof DebtsModule !== 'undefined' && DebtsModule.load) {
+      DebtsModule.load();
+    }
+  }
+
+  // تحديث سجل الفواتير (إذا كانت مفتوحة)
+  if (typeof InvoicesRecordsModule !== 'undefined' && InvoicesRecordsModule.load) {
+    InvoicesRecordsModule.load();
+  }
+
+  // تحديث الإحصائيات السريعة (المبيعات، الأرباح، إلخ) إذا كان App متاحاً
+  if (typeof App !== 'undefined' && App.updateQuickStats) {
+    App.updateQuickStats();
+  }
+
+  // تحديث التقارير إذا كانت مفتوحة
+  if (document.getElementById('panel-reports') && document.getElementById('panel-reports').classList.contains('active')) {
+    if (typeof ReportsModule !== 'undefined' && ReportsModule.generate) {
+      ReportsModule.generate();
+    }
+  }
+
+  // تحديث رأس المال في شريط الحالة
+  if (typeof Cash !== 'undefined') {
+    const equity = await Cash.calcEquity();
+    const equityEl = document.getElementById('statTotalEquity');
+    if (equityEl) {
+      equityEl.textContent = Currency.format(equity);
+    }
+    const settingsEquityEl = document.getElementById('settingsEquityDisplay');
+    if (settingsEquityEl) {
+      settingsEquityEl.textContent = Currency.format(equity);
+    }
+    const reportCapitalEl = document.getElementById('reportTotalCapital');
+    if (reportCapitalEl) {
+      reportCapitalEl.textContent = Currency.format(equity);
+    }
+  }
+
+  Utils.toast(`✅ ${inv.id} - المدفوع: ${Currency.format(newPaid)}، المتبقي: ${Currency.format(rem)}`);
+  return true;
+
+},
+
+
+      
+    
       startScanner: function(inputId, callback) {
         const container = document.createElement('div');
         container.id = 'scanner-container';
@@ -8194,19 +8298,21 @@ ${storeLogo ? `<img src="${storeLogo}" class="print-store-logo" alt="شعار ا
 
           const cashNet = cashIn - cashOut;
 
-          document.getElementById('statTodaySales').textContent = Currency.format(totalSales);
-          document.getElementById('statTodayProfit').textContent = Currency.format(totalSales - cogs);
-          const cashNetEl = document.getElementById('statTodayCashNet');
-          cashNetEl.textContent = Currency.format(cashNet);
-          cashNetEl.className = 'stat-value ' + (cashNet >= 0 ? 'green' : 'red');
-          document.getElementById('statTodayInvoices').textContent = todayInvs.length;
+  document.getElementById('statTodaySales').textContent = Currency.format(totalSales);
+document.getElementById('statTodayProfit').textContent = Currency.format(totalSales - cogs);
 
-          const equity = await Cash.calcEquity();
-          document.getElementById('statTotalEquity').textContent = Currency.format(equity);
+// ===== تحديث الرصيد النقدي الكلي =====
+const totalCash = Cash.get();
+const totalCashEl = document.getElementById('statTotalCash');
+if (totalCashEl) {
+  totalCashEl.textContent = Currency.format(totalCash);
+  totalCashEl.className = 'stat-value ' + (totalCash >= 0 ? 'green' : 'red');
+}
 
-          SettingsModule.updateDisplays();
-        } catch (e) { Utils.logError('updateQuickStats', e); }
-      },
+SettingsModule.updateDisplays();        
+  } catch (e) { Utils.logError('updateQuickStats', e); }
+},
+      
 
       updateAllDisplays: function() {
         ItemsModule.render();
@@ -8421,60 +8527,26 @@ ${storeLogo ? `<img src="${storeLogo}" class="print-store-logo" alt="شعار ا
     // =====================================================================
     // 23. زر تثبيت التطبيق (PWA)
     // =====================================================================
-// =====================================================================
-// 23. زر تثبيت التطبيق (PWA)
-// =====================================================================
+
 (function setupInstallButton() {
   const installBtn = document.getElementById('installAppBtn');
-  if (installBtn) installBtn.style.display = 'none'; // إخفاء دائم في التطبيق المغلف
-  let deferredPrompt = null;
-  let isAppInstalled = window.matchMedia('(display-mode: standalone)').matches;
-  const isDismissed = localStorage.getItem('install_dismissed') === 'true';
-
-  window.addEventListener('beforeinstallprompt', (e) => {
+  if (!installBtn) return;
+  const APK_DOWNLOAD_URL = 'https://dawnload-apk.vercel.app/';
+  installBtn.innerHTML = '<span class="material-symbols-outlined">download</span> تحميل التطبيق (APK)';
+  installBtn.style.display = 'flex'; // نظهره دائماً
+  installBtn.addEventListener('click', function(e) {
     e.preventDefault();
-    deferredPrompt = e;
-    if (!isAppInstalled && !isDismissed) {
-      installBtn.style.display = 'flex';
-    }
+    window.location.href = APK_DOWNLOAD_URL;
   });
 
-  installBtn.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        localStorage.setItem('app_installed', 'true');
-        isAppInstalled = true;
-        Utils.toast('✅ تم تثبيت التطبيق بنجاح!');
-      } else {
-        localStorage.setItem('install_dismissed', 'true');
-        Utils.toast('يمكنك التثبيت لاحقاً');
-      }
-      deferredPrompt = null;
-      installBtn.style.display = 'none';
-    } else {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      if (isIOS) {
-        alert('📱 للتثبيت على iPhone/iPad:\n1. اضغط على زر المشاركة\n2. اختر "أضف إلى الشاشة الرئيسية"');
-      } else if (navigator.userAgent.includes('Firefox')) {
-        alert('🔥 للتثبيت على Firefox:\n1. اضغط على قائمة التطبيق (☰)\n2. اختر "تثبيت التطبيق"');
-      } else {
-        alert('⚠️ استخدم Chrome أو Edge للتثبيت التلقائي.');
-      }
-    }
-  });
-
-  if (isAppInstalled || window.matchMedia('(display-mode: standalone)').matches) {
+  if (window.matchMedia('(display-mode: standalone)').matches) {
     installBtn.style.display = 'none';
   }
-
-  window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
-    if (e.matches) {
-      isAppInstalled = true;
-      installBtn.style.display = 'none';
-    }
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    console.log('تم إلغاء طلب تثبيت PWA، استخدم زر تحميل APK بدلاً من ذلك.');
   });
+
 })();
   </script>
 </body>
