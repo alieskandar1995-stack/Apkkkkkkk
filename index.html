@@ -2188,10 +2188,25 @@
    function saveCachedSubscription(data) {
   if (!data || typeof data !== 'object') return;
   // إذا كان الاشتراك مدى الحياة، ضع تاريخ صلاحية بعيد (2099)
-  if (data.plan === 'forever') {
+  if (data.plan === 'forever' || data.plan === 'lifetime') {
+    data.plan = 'forever';
     data.valid_until = '2099-12-31T23:59:59.999Z';
     localStorage.setItem('subscription_cache', JSON.stringify(data));
     return;
+  }
+  // إذا كان هناك تاريخ انتهاء، تحقق إذا كان بعيداً جداً (أكثر من سنة)
+  if (data.valid_until) {
+    const until = new Date(data.valid_until);
+    if (!isNaN(until.getTime())) {
+      const now = new Date();
+      const diffDays = (until - now) / (1000 * 60 * 60 * 24);
+      if (diffDays > 365) {
+        data.plan = 'forever';
+        data.valid_until = '2099-12-31T23:59:59.999Z';
+        localStorage.setItem('subscription_cache', JSON.stringify(data));
+        return;
+      }
+    }
   }
   // باقي الحالات (trial, monthly, etc.)
   if (!data.valid_until) {
@@ -2211,8 +2226,8 @@
     }
   }
   localStorage.setItem('subscription_cache', JSON.stringify(data));
-} 
-    function isCacheValid(cached) {
+}
+function isCacheValid(cached) {
   if (!cached) return false;
   // إذا كان الاشتراك مدى الحياة، فهو صالح دائماً
   if (cached.plan === 'forever') return true;
@@ -2222,8 +2237,9 @@
   const now = new Date();
   return now < until;
 }
-
+    
     async function checkSubscriptionWithCache(forceServer = false) {
+    
       const maxRetries = 2;
       let attempt = 0;
       let lastError = null;
@@ -2269,13 +2285,13 @@
             }
 
             if (isValidStatus && isNotExpired) {
-              const cacheData = {
-                status: status,
-                plan: result.plan || 'basic',
-                expiry: expiry,
-                valid_until: expiry,
-                message: result.message || 'تم التحقق من السيرفر'
-              };
+         const cacheData = {
+  status: status,
+  plan: result.plan || 'basic',
+  expiry: expiry,
+  valid_until: expiry,
+  message: result.message || 'تم التحقق من السيرفر'
+};     
               saveCachedSubscription(cacheData);
               Utils.toast('✅ تم التحقق من الاشتراك بنجاح', 2000);
               return true;
