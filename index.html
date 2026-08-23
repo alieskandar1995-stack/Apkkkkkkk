@@ -11,7 +11,9 @@
   <meta name="apple-mobile-web-app-title" content="احسبلي+" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <!-- Material Symbols (Google) -->
-  
+    <link rel="preload" href="./CustomFont-Regular.woff" as="font" type="font/woff" crossorigin />
+  <link rel="preload" href="./CustomFont-Medium.woff" as="font" type="font/woff" crossorigin />
+  <link rel="preload" href="./CustomFont-Bold.woff" as="font" type="font/woff" crossorigin />
   <link rel="stylesheet" href="./material-symbols.css" />
 <script src="./html5-qrcode.min.js"></script>
   
@@ -891,23 +893,21 @@
       </div>
       <div style="margin:16px 0 12px;">
         <h3 style="color:var(--text2); font-size:16px; margin-bottom:12px;"><span class="material-symbols-outlined">sell</span> اختر الباقة المناسبة</h3>
-        <div class="pricing-grid">
-          <div class="pricing-card"><div class="plan-name">شهري</div><div class="plan-desc">شهر واحد</div><button class="btn-select-plan" data-plan="monthly">اختر</button></div>
-          <div class="pricing-card popular"><div class="plan-name">نصف سنوي</div><div class="plan-desc">6 أشهر</div><div class="plan-savings">🔥 وفر شهراً</div><button class="btn-select-plan" data-plan="half_yearly">اختر</button></div>
-          <div class="pricing-card"><div class="plan-name">سنوي</div><div class="plan-desc">12 شهراً</div><div class="plan-savings">🎯 وفر 31%</div><button class="btn-select-plan" data-plan="yearly">اختر</button></div>
-          <div class="pricing-card" style="border:2px solid var(--gold);background:rgba(245,166,35,.08);"><div class="plan-name" style="color:var(--gold);font-weight:700;">مدى الحياة</div><div class="plan-desc">دفعة واحدة</div><div class="plan-savings">⭐ أفضل قيمة</div><button class="btn-select-plan" data-plan="forever">اختر</button></div>
-        </div>
+   <div class="pricing-grid" style="grid-template-columns:1fr; max-width:300px; margin:0 auto;">
+  <div class="pricing-card" style="border:2px solid var(--gold);background:rgba(245,166,35,.08);">
+    <div class="plan-name" style="color:var(--gold);font-weight:700;">مدى الحياة</div>
+    <div class="plan-desc">اشتراك دائم – دفعة واحدة</div>
+    <div class="plan-savings">⭐ أفضل قيمة</div>
+    <button class="btn-select-plan" data-plan="forever" style="background:#f5a623;color:#0a0a0a;border:none;padding:8px 20px;border-radius:30px;font-weight:700;cursor:pointer;width:100%;">اختر</button>
+  </div>
+</div>     
       </div>
       <button class="btn btn-gold" id="startTrialBtn" style="width:100%; margin-top:6px;"><span class="material-symbols-outlined">rocket_launch</span> بدء تجربة مجانية (14 يوماً)</button>
       <button class="btn btn-gold-outline" id="adminActivateBtn" style="width:100%; margin-top:8px;"><span class="material-symbols-outlined">verified</span> تفعيل بواسطة المسؤول</button>
       <div class="divider"><hr> أو <hr></div>
       <button class="whatsapp-btn" id="whatsappSupportBtn"><span class="material-symbols-outlined">chat</span> طلب اشتراك عبر واتساب</button>
       <div id="activationMessage" style="margin-top:12px; color:#ff6b6b; font-weight:600; text-align:center;"></div>
-      <div style="margin-top:16px; background:var(--bg3); border-radius:12px; padding:12px; border:1px solid var(--border);">
-        <p style="font-size:13px; color:var(--text3); margin-bottom:4px;"><span class="material-symbols-outlined">fingerprint</span> بصمة الجهاز:</p>
-        <p style="font-size:12px; color:var(--text2); word-break:break-all; background:var(--bg); padding:8px; border-radius:8px; direction:ltr; text-align:left;" id="deviceIdDisplay">جار التحميل...</p>
-        <button id="copyDeviceIdBtn" class="btn btn-gold-outline" style="margin-top:6px; padding:4px 12px; font-size:12px;"><span class="material-symbols-outlined">content_copy</span> نسخ</button>
-      </div>
+      
     </div>
   </div>
 
@@ -1295,7 +1295,7 @@
           <button class="btn" data-settings-tab="privacy">🔒 الخصوصية</button>
           <button class="btn" data-settings-tab="help">📘 تعليمات الاستخدام</button>
           <button class="btn btn-gold-outline" id="manageCustomersBtn"><span class="material-symbols-outlined">groups</span> إدارة العملاء</button>
-          <button class="btn btn-gold-outline" id="manageSubscriptionBtn"><span class="material-symbols-outlined">sell</span> إدارة الاشتراك</button>
+<button class="btn btn-gold-outline" id="manageSubscriptionBtn"><span class="material-symbols-outlined">sell</span> طلب اشتراك دائم</button>
         </div>
 
         <!-- تبويب الأموال -->
@@ -2185,35 +2185,43 @@
       } catch { return null; }
     }
 
-    function saveCachedSubscription(data) {
-      if (!data || typeof data !== 'object') return;
-      if (!data.valid_until) {
-        if (data.expiry) {
-          const d = new Date(data.expiry);
-          if (!isNaN(d.getTime())) {
-            data.valid_until = data.expiry;
-          } else {
-            const fallback = new Date();
-            fallback.setHours(fallback.getHours() + 36);
-            data.valid_until = fallback.toISOString();
-          }
-        } else {
-          const fallback = new Date();
-          fallback.setHours(fallback.getHours() + 36);
-          data.valid_until = fallback.toISOString();
-        }
+   function saveCachedSubscription(data) {
+  if (!data || typeof data !== 'object') return;
+  // إذا كان الاشتراك مدى الحياة، ضع تاريخ صلاحية بعيد (2099)
+  if (data.plan === 'forever') {
+    data.valid_until = '2099-12-31T23:59:59.999Z';
+    localStorage.setItem('subscription_cache', JSON.stringify(data));
+    return;
+  }
+  // باقي الحالات (trial, monthly, etc.)
+  if (!data.valid_until) {
+    if (data.expiry) {
+      const d = new Date(data.expiry);
+      if (!isNaN(d.getTime())) {
+        data.valid_until = data.expiry;
+      } else {
+        const fallback = new Date();
+        fallback.setHours(fallback.getHours() + 36);
+        data.valid_until = fallback.toISOString();
       }
-      localStorage.setItem('subscription_cache', JSON.stringify(data));
+    } else {
+      const fallback = new Date();
+      fallback.setHours(fallback.getHours() + 36);
+      data.valid_until = fallback.toISOString();
     }
-
+  }
+  localStorage.setItem('subscription_cache', JSON.stringify(data));
+} 
     function isCacheValid(cached) {
-      if (!cached) return false;
-      if (!cached.valid_until) return false;
-      const until = new Date(cached.valid_until);
-      if (isNaN(until.getTime())) return false;
-      const now = new Date();
-      return now < until;
-    }
+  if (!cached) return false;
+  // إذا كان الاشتراك مدى الحياة، فهو صالح دائماً
+  if (cached.plan === 'forever') return true;
+  if (!cached.valid_until) return false;
+  const until = new Date(cached.valid_until);
+  if (isNaN(until.getTime())) return false;
+  const now = new Date();
+  return now < until;
+}
 
     async function checkSubscriptionWithCache(forceServer = false) {
       const maxRetries = 2;
@@ -6233,10 +6241,10 @@
         });
 
         document.getElementById('manageSubscriptionBtn')?.addEventListener('click', function() {
-          const welcomeScreen = document.getElementById('welcomeScreen');
-          welcomeScreen.classList.add('open');
-          setTimeout(() => bindWelcomeEvents('manage'), 100);
-        });
+  const welcomeScreen = document.getElementById('welcomeScreen');
+  welcomeScreen.classList.add('open');
+  setTimeout(() => bindWelcomeEvents('upgrade'), 100);
+});
 
         SettingsModule.renderFixedExpenses();
         SettingsModule.updateDisplays();
@@ -7738,8 +7746,7 @@ ${storeLogo ? `<img src="${storeLogo}" class="print-store-logo" alt="شعار ا
               const msgEl = document.getElementById('activationMessage');
               if (msgEl) { msgEl.textContent = '📌 يرجى تفعيل التطبيق عن طريق الاشتراك أو بدء تجربة مجانية.';
                 msgEl.style.color = '#ff6b6b'; }
-              const deviceIdDisplay = document.getElementById('deviceIdDisplay');
-              if (deviceIdDisplay) deviceIdDisplay.textContent = Utils.getDeviceID();
+              
               await bindWelcomeEvents('register');
               return;
             }
@@ -8334,171 +8341,190 @@ SettingsModule.updateDisplays();
     // 21. شاشة الترحيب (أحداث التفعيل)
     // =====================================================================
     async function bindWelcomeEvents(mode = 'register') {
-      let selectedPlan = 'monthly';
+  const phoneInput = document.getElementById('welcomePhone');
+  const trialBtn = document.getElementById('startTrialBtn');
+  const adminBtn = document.getElementById('adminActivateBtn');
+  const whatsappBtn = document.getElementById('whatsappSupportBtn');
+  const msgDiv = document.getElementById('activationMessage');
+  const welcomeTitle = document.querySelector('.welcome-box h1');
+  const welcomeSub = document.querySelector('.welcome-box p:first-of-type');
+  const planGrid = document.querySelector('.pricing-grid');
+  const statusEl = document.getElementById('welcomeStatus');
 
-      const phoneInput = document.getElementById('welcomePhone');
-      const trialBtn = document.getElementById('startTrialBtn');
-      const adminBtn = document.getElementById('adminActivateBtn');
-      const whatsappBtn = document.getElementById('whatsappSupportBtn');
-      const msgDiv = document.getElementById('activationMessage');
-      const welcomeBox = document.querySelector('.welcome-box');
-      const welcomeTitle = welcomeBox?.querySelector('h1');
-      const welcomeSub = welcomeBox?.querySelector('p:first-of-type');
-      const planGrid = document.querySelector('.pricing-grid');
-      const statusEl = document.getElementById('welcomeStatus');
-
-      if (mode === 'manage') {
-        if (welcomeTitle) welcomeTitle.textContent = '📋 إدارة الاشتراك';
-        if (welcomeSub) welcomeSub.textContent = 'تفاصيل اشتراكك الحالي وإمكانية التجديد.';
-        if (phoneInput) {
-          const cached = getCachedSubscription();
-          const savedPhone = await AuthDB.get('user_phone') || '';
-          phoneInput.value = savedPhone || '';
-          phoneInput.setAttribute('readonly', 'readonly');
-          phoneInput.style.setProperty('background', 'rgba(255,255,255,0.04)');
-        }
-        if (trialBtn) trialBtn.style.display = 'none';
-        if (adminBtn) adminBtn.textContent = '🔄 تفعيل بواسطة المسؤول (تجديد)';
-        if (planGrid) planGrid.style.display = 'none';
-        if (whatsappBtn) whatsappBtn.textContent = '💬 طلب تجديد عبر واتساب';
-
-        let subInfo = '';
-        const cached = getCachedSubscription();
-        if (cached && isCacheValid(cached)) {
-          const planName = cached.plan === 'trial' ? 'تجربة مجانية' : cached.plan === 'monthly' ? 'شهري' : cached.plan === 'half_yearly' ? 'نصف سنوي' : cached.plan === 'yearly' ? 'سنوي' : cached.plan === 'forever' ? 'مدى الحياة' : cached.plan;
-          const expiry = cached.valid_until ? new Date(cached.valid_until).toLocaleDateString('ar') : 'أبدي';
-          subInfo = `<div style="background:rgba(255,215,0,0.08);padding:12px;border-radius:16px;margin:12px 0;border:1px solid rgba(255,215,0,0.2);"><p style="margin:4px 0;"><strong>📌 الباقة:</strong> ${planName}</p><p style="margin:4px 0;"><strong>📅 تاريخ الانتهاء:</strong> ${expiry}</p><p style="margin:4px 0;"><strong>📱 رقم الهاتف:</strong> ${phoneInput?.value || 'غير محدد'}</p><p style="margin:4px 0;"><strong>🔑 بصمة الجهاز:</strong> ${Utils.getDeviceID()}</p></div>`;
-        } else {
-          subInfo = `<div style="background:rgba(255,70,70,0.1);padding:12px;border-radius:16px;margin:12px 0;border:1px solid rgba(255,70,70,0.2);"><p style="color:#ff6b6b;">⚠️ لا يوجد اشتراك نشط أو أنه منتهي الصلاحية.</p><p style="font-size:13px;color:var(--text3);">يمكنك تجديد الاشتراك عن طريق تفعيل المسؤول أو بدء تجربة جديدة.</p></div>`;
-        }
-        const infoContainer = document.getElementById('subscriptionInfo') || document.createElement('div');
-        infoContainer.id = 'subscriptionInfo';
-        infoContainer.innerHTML = subInfo;
-        if (!document.getElementById('subscriptionInfo')) {
-          const p = welcomeBox?.querySelector('p:first-of-type');
-          if (p && p.nextSibling) { p.parentNode.insertBefore(infoContainer, p.nextSibling); } else { welcomeBox?.appendChild(infoContainer); }
-        }
-        if (msgDiv) msgDiv.textContent = 'اضغط على "تفعيل بواسطة المسؤول" لإدخال رقم الهاتف وتفعيل الاشتراك.';
-        document.querySelectorAll('.btn-select-plan').forEach(b => b.style.display = 'none');
-
-      } else {
-        if (trialBtn) trialBtn.style.display = 'block';
-        if (adminBtn) adminBtn.textContent = '🛡️ تفعيل بواسطة المسؤول';
-        if (planGrid) planGrid.style.display = 'grid';
-        if (whatsappBtn) whatsappBtn.textContent = '💬 طلب اشتراك عبر واتساب';
-        if (phoneInput) { phoneInput.removeAttribute('readonly');
-          phoneInput.style.removeProperty('background'); }
-        if (welcomeTitle) welcomeTitle.textContent = '🏷️ احسبلي+';
-        if (welcomeSub) welcomeSub.textContent = 'أدخل رقم هاتفك، اختر الباقة، ثم ابدأ تجربة مجانية أو قم بالتفعيل بواسطة المسؤول.';
-        if (msgDiv) msgDiv.textContent = '';
-        document.querySelectorAll('.btn-select-plan').forEach(b => b.style.display = '');
-        const oldInfo = document.getElementById('subscriptionInfo');
-        if (oldInfo) oldInfo.remove();
-      }
-
-      if (trialBtn) {
-        trialBtn.addEventListener('click', async function() {
-          if (mode === 'manage') return;
-          const rawPhone = document.getElementById('welcomePhone').value.trim();
-          const phone = Utils.cleanPhone(rawPhone);
-          if (phone.length !== 9 && phone.length !== 10) { Utils.toast('⚠️ رقم هاتف صحيح (9 أو 10 أرقام)'); return; }
-          const fingerprint = Utils.getDeviceID();
-          if (statusEl) statusEl.textContent = '⏳ جاري بدء التجربة...';
-          try {
-            const result = await startTrial(phone, fingerprint);
-            if (result && result.success) {
-              const status = result.status || '';
-              const expiry = result.expiry || result.valid_until;
-              const isValidStatus = (status === 'active' || status === 'trial');
-              let isNotExpired = true;
-              if (expiry) { const expDate = new Date(expiry); if (!isNaN(expDate.getTime())) { isNotExpired = new Date() < expDate; } }
-              if (isValidStatus && isNotExpired) {
-                const cacheData = { status: status, plan: result.plan || 'trial', expiry: expiry, valid_until: expiry, message: result.message || 'تم بدء التجربة المجانية' };
-                saveCachedSubscription(cacheData);
-                await AuthDB.set('user_phone', phone);
-                Utils.toast('✅ ' + (result.message || 'تم بدء التجربة المجانية بنجاح'), 3000);
-                document.getElementById('welcomeScreen').classList.remove('open');
-                document.getElementById('app').style.display = 'flex';
-                if (typeof App !== 'undefined' && App.init) { App.init(true); } else { document.querySelector('.nav-item[data-tab="invoices"]')?.classList.add('active');
-                  document.getElementById('panel-invoices')?.classList.add('active'); }
-              } else {
-                let errorMsg = 'فشل بدء التجربة';
-                if (status === 'blocked') errorMsg = '⚠️ الحساب محظور، لا يمكن بدء تجربة';
-                else if (status === 'expired' || (expiry && !isNotExpired)) errorMsg = '⚠️ انتهت صلاحية الاشتراك السابق، لا يمكن بدء تجربة جديدة';
-                else if (status === 'not_found') errorMsg = '⚠️ رقم الهاتف غير مسجل';
-                Utils.toast('❌ ' + errorMsg, 4000);
-              }
-            } else {
-              const errMsg = result?.error || result?.message || 'فشل بدء التجربة';
-              Utils.toast('❌ ' + errMsg, 4000);
-            }
-          } catch (error) { Utils.toast('❌ حدث خطأ أثناء بدء التجربة', 4000);
-            console.error(error); } finally { if (statusEl) statusEl.textContent = ''; }
-        });
-      }
-
-      if (adminBtn) {
-        adminBtn.addEventListener('click', async function() {
-          const rawPhone = document.getElementById('welcomePhone').value.trim();
-          const phone = Utils.cleanPhone(rawPhone);
-          if (phone.length !== 9 && phone.length !== 10) { Utils.toast('⚠️ رقم هاتف صحيح (9 أو 10 أرقام)'); return; }
-          const fingerprint = Utils.getDeviceID();
-          if (statusEl) statusEl.textContent = '⏳ جاري التفعيل...';
-          try {
-            const result = await verifySubscription(phone, fingerprint);
-            if (result && result.success) {
-              const status = result.status || '';
-              const expiry = result.expiry || result.valid_until;
-              const isValidStatus = (status === 'active' || status === 'trial');
-              let isNotExpired = true;
-              if (expiry) { const expDate = new Date(expiry); if (!isNaN(expDate.getTime())) { isNotExpired = new Date() < expDate; } }
-              if (isValidStatus && isNotExpired) {
-                const cacheData = { status: status, plan: result.plan || 'premium', expiry: expiry, valid_until: expiry, message: result.message || 'تم التفعيل بواسطة المسؤول' };
-                saveCachedSubscription(cacheData);
-                await AuthDB.set('user_phone', phone);
-                Utils.toast('✅ ' + (result.message || 'تم التفعيل بنجاح'), 3000);
-                document.getElementById('welcomeScreen').classList.remove('open');
-                document.getElementById('app').style.display = 'flex';
-                if (typeof App !== 'undefined' && App.init) { App.init(true); } else { document.querySelector('.nav-item[data-tab="invoices"]')?.classList.add('active');
-                  document.getElementById('panel-invoices')?.classList.add('active'); }
-              } else {
-                let errorMsg = 'فشل التفعيل';
-                if (status === 'blocked') errorMsg = '⚠️ الحساب محظور';
-                else if (status === 'expired' || (expiry && !isNotExpired)) errorMsg = '⚠️ انتهت صلاحية الاشتراك';
-                else if (status === 'not_found') errorMsg = '⚠️ رقم الهاتف غير مسجل';
-                Utils.toast('❌ ' + errorMsg, 4000);
-              }
-            } else {
-              const errMsg = result?.error || result?.message || 'فشل التفعيل';
-              Utils.toast('❌ ' + errMsg, 4000);
-            }
-          } catch (error) { Utils.toast('❌ حدث خطأ أثناء التفعيل', 4000);
-            console.error(error); } finally { if (statusEl) statusEl.textContent = ''; }
-        });
-      }
-
-      if (whatsappBtn) {
-        whatsappBtn.addEventListener('click', function() {
-          const phone = document.getElementById('welcomePhone').value.trim() || 'غير محدد';
-          const planLabel = selectedPlan || 'شهري';
-          const deviceId = Utils.getDeviceID();
-          const msg = mode === 'manage' ? `مرحباً، أرغب في تجديد اشتراك احسبلي+. الرقم: ${phone}، بصمة الجهاز: ${deviceId}` : `مرحباً، أرغب في الاشتراك في احسبلي+. الرقم: ${phone}، الباقة: ${planLabel}، بصمة الجهاز: ${deviceId}`;
-          window.open(`https://wa.me/963936019079?text=${encodeURIComponent(msg)}`, '_blank');
-        });
-      }
-
-      document.querySelectorAll('.btn-select-plan').forEach(btn => {
-        btn.addEventListener('click', function() {
-          if (mode === 'manage') return;
-          const plan = this.dataset.plan;
-          selectedPlan = plan;
-          document.querySelectorAll('.pricing-card').forEach(c => c.style.border = '1px solid rgba(255,215,0,0.08)');
-          this.closest('.pricing-card').style.border = '2px solid #f5a623';
-          Utils.toast('✅ تم اختيار الباقة: ' + this.closest('.pricing-card').querySelector('.plan-name').textContent);
-        });
-      });
+  // ===== التعديلات الشكلية =====
+  if (mode === 'upgrade') {
+    if (trialBtn) trialBtn.style.display = 'none';
+    if (adminBtn) adminBtn.style.display = 'block';
+    if (whatsappBtn) {
+      whatsappBtn.textContent = '💬 طلب اشتراك دائم عبر واتساب';
     }
+    document.querySelectorAll('.pricing-card').forEach(card => {
+      if (!card.querySelector('[data-plan="forever"]')) {
+        card.style.display = 'none';
+      }
+    });
+    if (welcomeTitle) welcomeTitle.textContent = '⭐ الترقية للاشتراك الدائم';
+    if (welcomeSub) welcomeSub.textContent = 'يمكنك طلب الاشتراك الدائم الآن من خلال المسؤول أو عبر واتساب.';
+    const deviceDiv = document.querySelector('.welcome-box div:has(#deviceIdDisplay)');
+    if (deviceDiv) deviceDiv.remove();
+    if (msgDiv) msgDiv.textContent = '';
+  } else {
+    if (trialBtn) trialBtn.style.display = 'block';
+    if (adminBtn) adminBtn.textContent = '🛡️ تفعيل بواسطة المسؤول';
+    if (planGrid) planGrid.style.display = 'grid';
+    if (whatsappBtn) whatsappBtn.textContent = '💬 طلب اشتراك عبر واتساب';
+    if (phoneInput) {
+      phoneInput.removeAttribute('readonly');
+      phoneInput.style.removeProperty('background');
+    }
+    if (welcomeTitle) welcomeTitle.textContent = '🏷️ احسبلي+';
+    if (welcomeSub) welcomeSub.textContent = 'أدخل رقم هاتفك، اختر الباقة، ثم ابدأ تجربة مجانية أو قم بالتفعيل بواسطة المسؤول.';
+    if (msgDiv) msgDiv.textContent = '';
+    document.querySelectorAll('.btn-select-plan').forEach(b => b.style.display = '');
+    const oldInfo = document.getElementById('subscriptionInfo');
+    if (oldInfo) oldInfo.remove();
+  }
 
+  // ===== ربط الأزرار باستخدام onclick (بدون alert) =====
+
+  // زر "بدء تجربة مجانية"
+  if (trialBtn) {
+    trialBtn.onclick = async function() {
+      const rawPhone = document.getElementById('welcomePhone').value.trim();
+      const phone = Utils.cleanPhone(rawPhone);
+      if (phone.length !== 9 && phone.length !== 10) {
+        Utils.toast('⚠️ رقم هاتف صحيح (9 أو 10 أرقام)');
+        return;
+      }
+      const fingerprint = Utils.getDeviceID();
+      if (statusEl) statusEl.textContent = '⏳ جاري بدء التجربة...';
+      try {
+        const result = await startTrial(phone, fingerprint);
+        if (result && result.success) {
+          const status = result.status || '';
+          const expiry = result.expiry || result.valid_until;
+          const isValidStatus = (status === 'active' || status === 'trial');
+          let isNotExpired = true;
+          if (expiry) {
+            const expDate = new Date(expiry);
+            if (!isNaN(expDate.getTime())) {
+              isNotExpired = new Date() < expDate;
+            }
+          }
+          if (isValidStatus && isNotExpired) {
+            const cacheData = {
+              status: status,
+              plan: result.plan || 'trial',
+              expiry: expiry,
+              valid_until: expiry,
+              message: result.message || 'تم بدء التجربة المجانية'
+            };
+            saveCachedSubscription(cacheData);
+            await AuthDB.set('user_phone', phone);
+            Utils.toast('✅ ' + (result.message || 'تم بدء التجربة المجانية بنجاح'), 3000);
+            document.getElementById('welcomeScreen').classList.remove('open');
+            document.getElementById('app').style.display = 'flex';
+            if (typeof App !== 'undefined' && App.init) {
+              App.init(true);
+            }
+          } else {
+            let errorMsg = 'فشل بدء التجربة';
+            if (status === 'blocked') errorMsg = '⚠️ الحساب محظور، لا يمكن بدء تجربة';
+            else if (status === 'expired' || (expiry && !isNotExpired)) errorMsg = '⚠️ انتهت صلاحية الاشتراك السابق، لا يمكن بدء تجربة جديدة';
+            else if (status === 'not_found') errorMsg = '⚠️ رقم الهاتف غير مسجل';
+            Utils.toast('❌ ' + errorMsg, 4000);
+          }
+        } else {
+          const errMsg = result?.error || result?.message || 'فشل بدء التجربة';
+          Utils.toast('❌ ' + errMsg, 4000);
+        }
+      } catch (error) {
+        Utils.toast('❌ حدث خطأ أثناء بدء التجربة', 4000);
+        console.error(error);
+      } finally {
+        if (statusEl) statusEl.textContent = '';
+      }
+    };
+  }
+
+  // زر "تفعيل بواسطة المسؤول"
+  if (adminBtn) {
+    adminBtn.onclick = async function() {
+      const rawPhone = document.getElementById('welcomePhone').value.trim();
+      const phone = Utils.cleanPhone(rawPhone);
+      if (phone.length !== 9 && phone.length !== 10) {
+        Utils.toast('⚠️ رقم هاتف صحيح (9 أو 10 أرقام)');
+        return;
+      }
+      const fingerprint = Utils.getDeviceID();
+      if (statusEl) statusEl.textContent = '⏳ جاري التفعيل...';
+      try {
+        const result = await verifySubscription(phone, fingerprint);
+        if (result && result.success) {
+          const status = result.status || '';
+          const expiry = result.expiry || result.valid_until;
+          const isValidStatus = (status === 'active' || status === 'trial');
+          let isNotExpired = true;
+          if (expiry) {
+            const expDate = new Date(expiry);
+            if (!isNaN(expDate.getTime())) {
+              isNotExpired = new Date() < expDate;
+            }
+          }
+          if (isValidStatus && isNotExpired) {
+            const cacheData = {
+              status: status,
+              plan: result.plan || 'premium',
+              expiry: expiry,
+              valid_until: expiry,
+              message: result.message || 'تم التفعيل بواسطة المسؤول'
+            };
+            saveCachedSubscription(cacheData);
+            await AuthDB.set('user_phone', phone);
+            Utils.toast('✅ ' + (result.message || 'تم التفعيل بنجاح'), 3000);
+            document.getElementById('welcomeScreen').classList.remove('open');
+            document.getElementById('app').style.display = 'flex';
+            if (typeof App !== 'undefined' && App.init) {
+              App.init(true);
+            }
+          } else {
+            let errorMsg = 'فشل التفعيل';
+            if (status === 'blocked') errorMsg = '⚠️ الحساب محظور';
+            else if (status === 'expired' || (expiry && !isNotExpired)) errorMsg = '⚠️ انتهت صلاحية الاشتراك';
+            else if (status === 'not_found') errorMsg = '⚠️ رقم الهاتف غير مسجل';
+            Utils.toast('❌ ' + errorMsg, 4000);
+          }
+        } else {
+          const errMsg = result?.error || result?.message || 'فشل التفعيل';
+          Utils.toast('❌ ' + errMsg, 4000);
+        }
+      } catch (error) {
+        Utils.toast('❌ حدث خطأ أثناء التفعيل', 4000);
+        console.error(error);
+      } finally {
+        if (statusEl) statusEl.textContent = '';
+      }
+    };
+  }
+
+  // زر واتساب
+  if (whatsappBtn) {
+    whatsappBtn.onclick = function() {
+      const msg = 'مرحباً، أرغب في الاشتراك الدائم في تطبيق احسبلي';
+      window.open(`https://wa.me/963936019079?text=${encodeURIComponent(msg)}`, '_blank');
+    };
+  }
+
+  // زر اختيار الباقة (اختياري)
+  document.querySelectorAll('.btn-select-plan').forEach(btn => {
+    btn.onclick = function() {
+      const plan = this.dataset.plan;
+      document.querySelectorAll('.pricing-card').forEach(c => c.style.border = '1px solid rgba(255,215,0,0.08)');
+      this.closest('.pricing-card').style.border = '2px solid #f5a623';
+      Utils.toast('✅ تم اختيار الباقة: ' + this.closest('.pricing-card').querySelector('.plan-name').textContent);
+    };
+  });
+}
     // =====================================================================
     // 22. شاشة البداية (Splash)
     // =====================================================================
